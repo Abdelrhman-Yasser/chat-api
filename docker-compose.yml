@@ -1,0 +1,54 @@
+version: "3"
+services:
+  db:
+    container_name: db
+    image: mysql:5.7
+    volumes:
+      - .:/chat_system
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_USER: myuser
+      MYSQL_PASSWORD: mypassword
+      MYSQL_DATABASE: chat_system_development
+  redis:
+    container_name: redis
+    volumes:
+      - .:/chat_system
+    image: redis:latest
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.0
+    volumes:
+      - .:/chat_system
+    environment:
+      - discovery.type=single-node
+  web:
+    container_name: web
+    build: .
+    command: >
+      bash -c "
+      rm -f tmp/pids/server.pid &&
+      bundle exec rails db:migrate &&
+      bundle exec rails s -b '0.0.0.0'
+      "
+    volumes:
+      - .:/chat_system
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - redis
+      - elasticsearch
+    env_file:
+      - .env
+  sidekiq:
+    container_name: sidekiq
+    build: .
+    command: bundle exec sidekiq
+    volumes:
+      - .:/chat_system
+    depends_on:
+      - db
+      - redis
+      - elasticsearch
+    env_file:
+      - .env
